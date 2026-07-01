@@ -14,7 +14,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .styles import IEEE_RAL_STYLE, PublicationSize, get_publication_size
+from .styles import IEEE_RAL_STYLE, REPORT_SIZE, REPORT_STYLE, PublicationSize, PublicationStyle, get_publication_size
 
 
 XLABEL_PLACEHOLDER = "XLABEL"
@@ -50,8 +50,8 @@ def save_publication_figure(
     label = str(figure_cfg.get("label") or f"fig:{name}")
 
     fig, ax = plt.subplots(figsize=(size.width_in, size.height_in))
-    _apply_axes_style(ax)
-    _plot_signal(ax, np.asarray(x), np.asarray(signal), figure_cfg, signal_cfg)
+    _apply_axes_style(ax, IEEE_RAL_STYLE)
+    _plot_signal(ax, np.asarray(x), np.asarray(signal), figure_cfg, signal_cfg, IEEE_RAL_STYLE)
 
     ax.set_xlabel(XLABEL_PLACEHOLDER)
     ax.set_ylabel(YLABEL_PLACEHOLDER)
@@ -71,6 +71,34 @@ def save_publication_figure(
     )
 
 
+def save_report_figure(
+    x: np.ndarray,
+    signal: np.ndarray,
+    figure_cfg: dict[str, Any],
+    signal_cfg: dict[str, Any],
+    output_dir: Path,
+) -> Path:
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    name = str(figure_cfg["name"])
+    pdf_path = output_dir / f"{name}.pdf"
+    x_label = str(figure_cfg.get("x_label", "time [s]"))
+    y_label = str(figure_cfg.get("y_label") or signal_cfg.get("unit") or "value")
+
+    fig, ax = plt.subplots(figsize=(REPORT_SIZE.width_in, REPORT_SIZE.height_in))
+    _apply_axes_style(ax, REPORT_STYLE)
+    _plot_signal(ax, np.asarray(x), np.asarray(signal), figure_cfg, signal_cfg, REPORT_STYLE)
+
+    ax.set_xlabel(x_label, fontsize=REPORT_STYLE.label_size)
+    ax.set_ylabel(y_label, fontsize=REPORT_STYLE.label_size)
+    ax.margins(x=0)
+    fig.tight_layout(pad=0.45)
+    fig.savefig(pdf_path, format="pdf", bbox_inches="tight", pad_inches=0.03)
+    plt.close(fig)
+
+    return pdf_path
+
+
 def write_latex_snippet(figures: list[PublicationFigure], latex_path: Path, *, graphics_prefix: str = "") -> Path:
     latex_path.parent.mkdir(parents=True, exist_ok=True)
     header = [
@@ -83,8 +111,7 @@ def write_latex_snippet(figures: list[PublicationFigure], latex_path: Path, *, g
     return latex_path
 
 
-def _apply_axes_style(ax: Any) -> None:
-    style = IEEE_RAL_STYLE
+def _apply_axes_style(ax: Any, style: PublicationStyle) -> None:
     ax.tick_params(axis="both", labelsize=style.tick_size, width=style.axis_line_width, length=2.5, pad=1.5)
     ax.grid(True, color="0.88", linewidth=style.grid_line_width)
     for spine in ax.spines.values():
@@ -97,8 +124,8 @@ def _plot_signal(
     signal: np.ndarray,
     figure_cfg: dict[str, Any],
     signal_cfg: dict[str, Any],
+    style: PublicationStyle,
 ) -> None:
-    style = IEEE_RAL_STYLE
     if signal.ndim == 1:
         ax.plot(x, signal, linewidth=style.line_width)
         return

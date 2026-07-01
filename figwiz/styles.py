@@ -23,6 +23,15 @@ class PublicationStyle:
 
 
 IEEE_RAL_STYLE = PublicationStyle()
+REPORT_STYLE = PublicationStyle(
+    font_size=9.0,
+    tick_size=8.0,
+    label_size=9.0,
+    legend_size=8.0,
+    line_width=1.1,
+    axis_line_width=0.75,
+    grid_line_width=0.4,
+)
 
 PUBLICATION_SIZES: dict[str, PublicationSize] = {
     "column": PublicationSize(
@@ -38,6 +47,13 @@ PUBLICATION_SIZES: dict[str, PublicationSize] = {
         include_width=r"0.48\columnwidth",
     ),
 }
+
+REPORT_SIZE = PublicationSize(
+    name="report",
+    width_in=6.2,
+    height_in=2.4,
+    include_width="",
+)
 
 
 def get_publication_size(name: str | None) -> PublicationSize:
