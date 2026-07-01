@@ -103,13 +103,13 @@ def view(
             fig = make_timeseries_figure(time_p, signal_p, fig_cfg, sig_cfg)
         elif plot_type == "array":
             fs = float(cfg["data"]["fs"])
-            signal_p, effective_fs = apply_array_processing(
+            signal_p, effective_fs, time_offset = apply_array_processing(
                 raw_signal,
                 fig_cfg.get("processing"),
                 fs=fs,
                 sample_down=sample_down,
             )
-            fig = make_array_figure(signal_p, fig_cfg, sig_cfg, fs=effective_fs)
+            fig = make_array_figure(signal_p, fig_cfg, sig_cfg, fs=effective_fs, time_offset=time_offset)
         else:
             raise typer.BadParameter(f"Unsupported plot type '{plot_type}'.")
 

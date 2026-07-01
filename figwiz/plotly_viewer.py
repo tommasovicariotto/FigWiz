@@ -61,6 +61,7 @@ def make_array_figure(
     figure_cfg: dict[str, Any],
     signal_cfg: dict[str, Any],
     fs: float,
+    time_offset: float = 0.0,
 ) -> go.Figure:
     fig = go.Figure()
     signal = np.asarray(signal)
@@ -68,7 +69,7 @@ def make_array_figure(
     title = figure_cfg.get("title", figure_cfg.get("name", "FigWiz"))
     y_label = figure_cfg.get("y_label") or signal_cfg.get("unit") or "value"
     x_label = figure_cfg.get("x_label", "time [s]")
-    x = sample_time_axis(signal.shape[0], fs)
+    x = sample_time_axis(signal.shape[0], fs) + float(time_offset)
 
     if signal.ndim == 1:
         fig.add_trace(go.Scatter(x=x, y=signal, mode="lines", name=figure_cfg.get("name", "signal")))
