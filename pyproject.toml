@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "paperfig"
+version = "0.1.0"
+description = "Config-driven MATLAB figure inspection tool"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "pyyaml>=6.0",
+    "plotly>=5.18",
+    "typer>=0.9",
+    "rich>=13.0"
+]
+
+[project.scripts]
+paperfig = "paperfig.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["paperfig*"]
