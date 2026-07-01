@@ -28,9 +28,7 @@ outputs/
 
 # Large data
 data/*.mat
-!data/example.mat
+!data/nominal.mat
 
 # Logs
 *.log
-
-tests/

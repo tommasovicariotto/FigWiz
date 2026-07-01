@@ -88,14 +88,18 @@ This writes PDF files with real labels and legends, without LaTeX snippets.
 FigWiz separates the project into small parts:
 
 ```text
-configs/                  user-editable plotting recipes
-figwiz/templates/          reusable figure structures
-figwiz/config.py           strict config loading and validation
-figwiz/processing.py       crop, scale, norm, sample down
-figwiz/plotly_viewer.py    interactive HTML dashboard backend
-figwiz/publication.py      Matplotlib EPS/PDF export backend
-figwiz/styles.py           reusable paper/report style definitions
-figwiz/cli.py              command-line entry points
+configs/                    user-editable plotting recipes
+  robotics_example.yaml      reproducible robotics example
+
+figwiz/                     Python package
+  templates/                reusable figure structures
+    *.yaml                  built-in template definitions
+  cli.py                    command-line entry points
+  config.py                 strict config loading and validation
+  processing.py             crop, scale, norm, sample down
+  plotly_viewer.py          interactive HTML dashboard backend
+  publication.py            Matplotlib EPS/PDF export backend
+  styles.py                 reusable paper/report style definitions
 ```
 
 For most use cases, modify only:

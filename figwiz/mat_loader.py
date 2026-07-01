@@ -37,7 +37,7 @@ def as_array(value: Any, name: str) -> np.ndarray:
     if arr.dtype == object:
         raise TypeError(
             f"Variable '{name}' looks like a MATLAB object/struct. "
-            "Day 1 MVP supports simple numeric arrays only."
+            "FigWiz supports numeric arrays and time-series data."
         )
 
     arr = np.squeeze(arr)
