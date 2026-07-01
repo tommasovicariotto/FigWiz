@@ -1,0 +1,5 @@
+name: tcp_rotation_error
+title: TCP rotation error
+plot: timeseries
+x_label: time [s]
+y_label: rotation error [deg]

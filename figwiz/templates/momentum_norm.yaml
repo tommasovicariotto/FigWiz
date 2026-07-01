@@ -1,0 +1,7 @@
+name: momentum_norm
+title: Momentum norm
+plot: timeseries
+x_label: time [s]
+y_label: momentum norm
+processing:
+  norm: true
