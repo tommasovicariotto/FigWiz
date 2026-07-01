@@ -18,6 +18,13 @@ def _component_labels(signal_cfg: dict[str, Any], n_cols: int) -> list[str]:
     return [f"c{i+1}" for i in range(n_cols)]
 
 
+def _show_legend(figure_cfg: dict[str, Any], signal: np.ndarray) -> bool:
+    legend = figure_cfg.get("legend", True)
+    if isinstance(legend, bool):
+        return legend and signal.ndim > 1
+    return bool(legend.get("show", True)) and signal.ndim > 1
+
+
 def make_timeseries_figure(
     time: np.ndarray,
     signal: np.ndarray,
@@ -49,6 +56,7 @@ def make_timeseries_figure(
         title=title,
         xaxis_title=x_label,
         yaxis_title=y_label,
+        showlegend=_show_legend(figure_cfg, signal),
         hovermode="x unified",
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
@@ -82,6 +90,7 @@ def make_array_figure(
         title=title,
         xaxis_title=x_label,
         yaxis_title=y_label,
+        showlegend=_show_legend(figure_cfg, signal),
         hovermode="x unified",
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
