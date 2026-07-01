@@ -1,4 +1,4 @@
-# Day 1 config for paperfig.
+# Basic config for FigWiz.
 # The .mat file contains raw arrays. This file defines what they mean and how to plot them.
 
 data:
