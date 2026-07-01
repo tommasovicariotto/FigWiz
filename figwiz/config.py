@@ -22,6 +22,15 @@ BUILTIN_STYLES: dict[str, dict[str, Any]] = {
     },
 }
 
+BUILTIN_PIPELINES: dict[str, dict[str, Any]] = {
+    "rad_to_deg": {
+        "scale": 57.29577951308232,
+    },
+    "deg_to_rad": {
+        "scale": 0.017453292519943295,
+    },
+}
+
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 
 FIGURE_DEFAULTS: dict[str, Any] = {
@@ -44,7 +53,7 @@ TOP_LEVEL_FIELDS = {
     "templates",
     "variables",
 }
-DATA_FIELDS = {"dataset", "file", "fs", "time"}
+DATA_FIELDS = {"dataset", "file", "fs", "sample_down", "time"}
 OUTPUT_FIELDS = {"html_dir"}
 SIGNAL_FIELDS = {"components", "kind", "source", "unit"}
 FIGURE_FIELDS = {
@@ -80,6 +89,7 @@ def load_config(config_path: str | Path) -> dict[str, Any]:
     raw_cfg = _load_raw_config(path, seen=set())
     substituted = _substitute_variables(raw_cfg)
     cfg = _expand_reusable_components(substituted)
+    _expand_signal_shorthand(cfg)
     _expand_dataset_alias(cfg)
     _expand_pipeline_aliases(cfg)
     _validate_config(cfg)
@@ -321,11 +331,14 @@ def _expand_dataset_alias(cfg: dict[str, Any]) -> None:
 
 
 def _expand_pipeline_aliases(cfg: dict[str, Any]) -> None:
-    pipelines = cfg.get("pipelines", {})
-    if pipelines is None:
-        pipelines = {}
-    if not isinstance(pipelines, dict):
+    custom_pipelines = cfg.get("pipelines", {})
+    if custom_pipelines is None:
+        custom_pipelines = {}
+    if not isinstance(custom_pipelines, dict):
         raise ConfigError("'pipelines' must be a mapping.")
+
+    pipelines = _deep_merge(BUILTIN_PIPELINES, custom_pipelines)
+    cfg["pipelines"] = pipelines
 
     for name, pipeline in pipelines.items():
         if not isinstance(pipeline, dict):
@@ -356,6 +369,26 @@ def _expand_pipeline_aliases(cfg: dict[str, Any]) -> None:
         figure["processing"] = _deep_merge(pipelines[pipeline_name], processing)
 
 
+def _expand_signal_shorthand(cfg: dict[str, Any]) -> None:
+    signals = cfg.get("signals")
+    if signals is None:
+        signals = {}
+        cfg["signals"] = signals
+    if not isinstance(signals, dict):
+        return
+
+    figures = cfg.get("figures", [])
+    if not isinstance(figures, list):
+        return
+
+    for figure in figures:
+        if not isinstance(figure, dict):
+            continue
+        signal = figure.get("signal")
+        if isinstance(signal, str) and signal not in signals:
+            signals[signal] = {"source": signal}
+
+
 def _validate_config(cfg: dict[str, Any]) -> None:
     _validate_unknown_fields(cfg, TOP_LEVEL_FIELDS, "top-level")
 
@@ -370,6 +403,12 @@ def _validate_config(cfg: dict[str, Any]) -> None:
         data["fs"] = 1000
     if not _is_number(data["fs"]) or data["fs"] <= 0:
         raise ConfigError("'data.fs' must be a positive number.")
+    if "sample_down" not in data:
+        data["sample_down"] = 100
+    if data["sample_down"] is not False and (
+        not _is_number(data["sample_down"]) or data["sample_down"] <= 0
+    ):
+        raise ConfigError("'data.sample_down' must be a positive number or false.")
     _optional_string(data, "time", "data")
 
     output = cfg.get("output", {})

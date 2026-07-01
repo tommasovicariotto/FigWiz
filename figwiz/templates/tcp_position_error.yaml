@@ -1,0 +1,5 @@
+name: tcp_position_error
+title: TCP position error
+plot: timeseries
+x_label: time [s]
+y_label: position error [m]

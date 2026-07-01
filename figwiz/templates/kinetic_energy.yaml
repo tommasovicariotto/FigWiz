@@ -1,0 +1,5 @@
+name: kinetic_energy
+title: Kinetic energy
+plot: timeseries
+x_label: time [s]
+y_label: kinetic energy [J]

@@ -71,6 +71,7 @@ def view(
         raise typer.BadParameter("Config contains no figures.")
 
     output_dir = resolve_path(config, cfg.get("output", {}).get("html_dir", "outputs/html"))
+    sample_down = cfg.get("data", {}).get("sample_down")
 
     rendered_figures = []
     for fig_cfg in figures:
@@ -98,11 +99,17 @@ def view(
             if time_name not in mat_data:
                 raise typer.BadParameter(f"Time variable '{time_name}' not found in MAT file.")
             time = as_array(mat_data[time_name], time_name)
-            time_p, signal_p = apply_processing(time, raw_signal, fig_cfg.get("processing"))
+            time_p, signal_p = apply_processing(time, raw_signal, fig_cfg.get("processing"), sample_down=sample_down)
             fig = make_timeseries_figure(time_p, signal_p, fig_cfg, sig_cfg)
         elif plot_type == "array":
-            signal_p = apply_array_processing(raw_signal, fig_cfg.get("processing"))
-            fig = make_array_figure(signal_p, fig_cfg, sig_cfg, fs=float(cfg["data"]["fs"]))
+            fs = float(cfg["data"]["fs"])
+            signal_p, effective_fs = apply_array_processing(
+                raw_signal,
+                fig_cfg.get("processing"),
+                fs=fs,
+                sample_down=sample_down,
+            )
+            fig = make_array_figure(signal_p, fig_cfg, sig_cfg, fs=effective_fs)
         else:
             raise typer.BadParameter(f"Unsupported plot type '{plot_type}'.")
 

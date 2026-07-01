@@ -1,0 +1,5 @@
+name: momentum_components
+title: Momentum components
+plot: timeseries
+x_label: time [s]
+y_label: momentum
