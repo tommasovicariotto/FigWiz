@@ -55,7 +55,7 @@ TOP_LEVEL_FIELDS = {
     "variables",
 }
 DATA_FIELDS = {"dataset", "file", "fs", "sample_down", "time"}
-OUTPUT_FIELDS = {"eps_dir", "html_dir", "latex_file"}
+OUTPUT_FIELDS = {"eps_dir", "html_dir", "latex_file", "report_dir"}
 SIGNAL_FIELDS = {"components", "kind", "source", "unit"}
 FIGURE_FIELDS = {
     "caption",
@@ -437,6 +437,7 @@ def _validate_config(cfg: dict[str, Any]) -> None:
         _optional_string(output, "eps_dir", "output")
         _optional_string(output, "html_dir", "output")
         _optional_string(output, "latex_file", "output")
+        _optional_string(output, "report_dir", "output")
 
     _validate_signals(cfg.get("signals"))
     _validate_figures(cfg.get("figures"), cfg["signals"], data)

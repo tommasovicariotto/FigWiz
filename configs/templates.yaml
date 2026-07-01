@@ -12,6 +12,7 @@ data:
 output:
   eps_dir: outputs/paper/eps
   latex_file: outputs/paper/figures.txt
+  report_dir: outputs/report
 
 style: ieee
 
