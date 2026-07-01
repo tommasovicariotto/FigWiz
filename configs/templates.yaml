@@ -1,0 +1,45 @@
+# Robotics template example.
+
+variables:
+  experiment_name: nominal
+
+run_id: "${experiment_name}"
+
+data:
+  file: "data/${experiment_name}.mat"
+  time: t
+
+output:
+  eps_dir: outputs/paper/eps
+  latex_file: outputs/paper/figures.txt
+
+style: ieee
+
+figures:
+  - template: tcp_position_error
+    signal: TCP_pos_err
+    paper_size: column
+    processing:
+      crop: [7, 50]
+      scale: 100
+    y_label: position error [cm]
+
+  - template: tcp_rotation_error
+    signal: TCP_rot_err
+    paper_size: half_column
+    pipeline: rad_to_deg
+    processing:
+      crop: [7, 50]
+
+  - template: kinetic_energy
+    signal: kin_energy
+    paper_size: half_column
+    processing:
+      crop: [7, 50]
+
+  - template: momentum_norm
+    signal: momentum
+    paper_size: column
+    legend: false
+    processing:
+      crop: [7, 50]

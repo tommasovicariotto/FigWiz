@@ -1,0 +1,5 @@
+name: force_torque
+title: Force torque
+plot: timeseries
+x_label: time [s]
+y_label: force / torque

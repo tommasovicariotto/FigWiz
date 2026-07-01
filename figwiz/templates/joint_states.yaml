@@ -1,0 +1,5 @@
+name: joint_states
+title: Joint states
+plot: timeseries
+x_label: time [s]
+y_label: joint state

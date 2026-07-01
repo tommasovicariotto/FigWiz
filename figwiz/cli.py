@@ -7,9 +7,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from .config import ConfigError, load_config, resolve_path
+from .config import ConfigError, load_config, resolve_output_path, resolve_path
 from .mat_loader import as_array, load_mat_file, variable_summary
-from .processing import apply_array_processing, apply_processing
+from .processing import apply_array_processing, apply_processing, sample_time_axis
 from .plotly_viewer import make_array_figure, make_timeseries_figure, save_dashboard
 
 app = typer.Typer(help="Configuration-driven MATLAB experiment figure tool.")
@@ -70,7 +70,8 @@ def view(
     if not figures:
         raise typer.BadParameter("Config contains no figures.")
 
-    output_dir = resolve_path(config, cfg.get("output", {}).get("html_dir", "outputs/html"))
+    output_dir = resolve_output_path(config, cfg, cfg.get("output", {}).get("html_dir", "outputs/html"))
+    sample_down = cfg.get("data", {}).get("sample_down")
 
     rendered_figures = []
     for fig_cfg in figures:
@@ -98,11 +99,17 @@ def view(
             if time_name not in mat_data:
                 raise typer.BadParameter(f"Time variable '{time_name}' not found in MAT file.")
             time = as_array(mat_data[time_name], time_name)
-            time_p, signal_p = apply_processing(time, raw_signal, fig_cfg.get("processing"))
+            time_p, signal_p = apply_processing(time, raw_signal, fig_cfg.get("processing"), sample_down=sample_down)
             fig = make_timeseries_figure(time_p, signal_p, fig_cfg, sig_cfg)
         elif plot_type == "array":
-            signal_p = apply_array_processing(raw_signal, fig_cfg.get("processing"))
-            fig = make_array_figure(signal_p, fig_cfg, sig_cfg, fs=float(cfg["data"]["fs"]))
+            fs = float(cfg["data"]["fs"])
+            signal_p, effective_fs, time_offset = apply_array_processing(
+                raw_signal,
+                fig_cfg.get("processing"),
+                fs=fs,
+                sample_down=sample_down,
+            )
+            fig = make_array_figure(signal_p, fig_cfg, sig_cfg, fs=effective_fs, time_offset=time_offset)
         else:
             raise typer.BadParameter(f"Unsupported plot type '{plot_type}'.")
 
@@ -122,3 +129,78 @@ def view(
         save_dashboard(batch, out_path, open_browser=not no_browser)
         generated.append(out_path)
         console.print(f"[green]Generated[/green] {out_path}")
+
+
+@app.command()
+def generate(
+    config: Path = typer.Argument(..., help="Path to YAML config."),
+    only: Optional[str] = typer.Option(None, "--only", help="Only export one figure by name."),
+):
+    """Generate publication EPS figures and one psfrag LaTeX snippet."""
+    try:
+        from .publication import save_publication_figure, write_latex_snippet
+    except ImportError as exc:
+        raise typer.BadParameter("Publication export requires matplotlib. Install project dependencies first.") from exc
+
+    cfg, mat_path, mat_data = _load_from_config(config)
+    console.print(f"[bold]MAT file:[/bold] {mat_path}")
+
+    signals_cfg = cfg.get("signals", {})
+    figures = cfg.get("figures", [])
+    if not figures:
+        raise typer.BadParameter("Config contains no figures.")
+
+    output_cfg = cfg.get("output", {})
+    eps_dir = resolve_output_path(config, cfg, output_cfg.get("eps_dir", "outputs/paper/eps"))
+    latex_path = resolve_output_path(config, cfg, output_cfg.get("latex_file", "outputs/paper/figures.tex"))
+    sample_down = cfg.get("data", {}).get("sample_down")
+
+    exported = []
+    for fig_cfg in figures:
+        fig_name = fig_cfg.get("name")
+        if only and fig_name != only:
+            continue
+
+        semantic_signal = fig_cfg.get("signal")
+        if semantic_signal not in signals_cfg:
+            raise typer.BadParameter(f"Figure '{fig_name}' references unknown signal '{semantic_signal}'.")
+
+        sig_cfg = signals_cfg[semantic_signal]
+        source = sig_cfg.get("source", semantic_signal)
+        if source not in mat_data:
+            raise typer.BadParameter(f"Source variable '{source}' not found for signal '{semantic_signal}'.")
+
+        raw_signal = as_array(mat_data[source], source)
+        plot_type = fig_cfg.get("plot", "timeseries")
+
+        if plot_type == "timeseries":
+            data_cfg = cfg.get("data", {})
+            time_name = data_cfg.get("time")
+            if not time_name:
+                raise typer.BadParameter(f"Figure '{fig_name}' uses plot: timeseries, but data.time is not configured.")
+            if time_name not in mat_data:
+                raise typer.BadParameter(f"Time variable '{time_name}' not found in MAT file.")
+            time = as_array(mat_data[time_name], time_name)
+            x, signal = apply_processing(time, raw_signal, fig_cfg.get("processing"), sample_down=sample_down)
+        elif plot_type == "array":
+            fs = float(cfg["data"]["fs"])
+            signal, effective_fs, time_offset = apply_array_processing(
+                raw_signal,
+                fig_cfg.get("processing"),
+                fs=fs,
+                sample_down=sample_down,
+            )
+            x = sample_time_axis(signal.shape[0], effective_fs) + time_offset
+        else:
+            raise typer.BadParameter(f"Unsupported plot type '{plot_type}'.")
+
+        exported_figure = save_publication_figure(x, signal, fig_cfg, sig_cfg, eps_dir)
+        exported.append(exported_figure)
+        console.print(f"[green]Generated[/green] {exported_figure.eps_path}")
+
+    if not exported:
+        console.print("[yellow]No figures generated.[/yellow]")
+        return
+
+    write_latex_snippet(exported, latex_path, graphics_prefix="")
+    console.print(f"[green]Generated[/green] {latex_path}")

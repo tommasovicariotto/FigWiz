@@ -22,6 +22,15 @@ BUILTIN_STYLES: dict[str, dict[str, Any]] = {
     },
 }
 
+BUILTIN_PIPELINES: dict[str, dict[str, Any]] = {
+    "rad_to_deg": {
+        "scale": 57.29577951308232,
+    },
+    "deg_to_rad": {
+        "scale": 0.017453292519943295,
+    },
+}
+
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 
 FIGURE_DEFAULTS: dict[str, Any] = {
@@ -37,6 +46,7 @@ TOP_LEVEL_FIELDS = {
     "figures",
     "output",
     "pipelines",
+    "run_id",
     "signals",
     "style",
     "styles",
@@ -44,13 +54,16 @@ TOP_LEVEL_FIELDS = {
     "templates",
     "variables",
 }
-DATA_FIELDS = {"dataset", "file", "fs", "time"}
-OUTPUT_FIELDS = {"html_dir"}
+DATA_FIELDS = {"dataset", "file", "fs", "sample_down", "time"}
+OUTPUT_FIELDS = {"eps_dir", "html_dir", "latex_file"}
 SIGNAL_FIELDS = {"components", "kind", "source", "unit"}
 FIGURE_FIELDS = {
+    "caption",
     "events",
+    "label",
     "legend",
     "name",
+    "paper_size",
     "pipeline",
     "plot",
     "processing",
@@ -63,6 +76,7 @@ FIGURE_FIELDS = {
 }
 PROCESSING_FIELDS = {"crop", "norm", "pipeline", "scale"}
 EVENT_FIELDS = {"label", "time"}
+LEGEND_FIELDS = {"columns", "location", "show"}
 MATH_OPERATORS = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
@@ -80,6 +94,7 @@ def load_config(config_path: str | Path) -> dict[str, Any]:
     raw_cfg = _load_raw_config(path, seen=set())
     substituted = _substitute_variables(raw_cfg)
     cfg = _expand_reusable_components(substituted)
+    _expand_signal_shorthand(cfg)
     _expand_dataset_alias(cfg)
     _expand_pipeline_aliases(cfg)
     _validate_config(cfg)
@@ -91,6 +106,16 @@ def resolve_path(config_path: str | Path, possibly_relative_path: str | Path) ->
     if p.is_absolute():
         return p
     return Path(config_path).parent.parent / p
+
+
+def resolve_output_path(config_path: str | Path, cfg: dict[str, Any], output_path: str | Path) -> Path:
+    path = resolve_path(config_path, output_path)
+    run_id = cfg.get("run_id")
+    if not run_id:
+        return path
+    if path.suffix:
+        return path.parent / str(run_id) / path.name
+    return path / str(run_id)
 
 
 def _load_raw_config(path: Path, seen: set[Path]) -> dict[str, Any]:
@@ -321,11 +346,14 @@ def _expand_dataset_alias(cfg: dict[str, Any]) -> None:
 
 
 def _expand_pipeline_aliases(cfg: dict[str, Any]) -> None:
-    pipelines = cfg.get("pipelines", {})
-    if pipelines is None:
-        pipelines = {}
-    if not isinstance(pipelines, dict):
+    custom_pipelines = cfg.get("pipelines", {})
+    if custom_pipelines is None:
+        custom_pipelines = {}
+    if not isinstance(custom_pipelines, dict):
         raise ConfigError("'pipelines' must be a mapping.")
+
+    pipelines = _deep_merge(BUILTIN_PIPELINES, custom_pipelines)
+    cfg["pipelines"] = pipelines
 
     for name, pipeline in pipelines.items():
         if not isinstance(pipeline, dict):
@@ -356,8 +384,31 @@ def _expand_pipeline_aliases(cfg: dict[str, Any]) -> None:
         figure["processing"] = _deep_merge(pipelines[pipeline_name], processing)
 
 
+def _expand_signal_shorthand(cfg: dict[str, Any]) -> None:
+    signals = cfg.get("signals")
+    if signals is None:
+        signals = {}
+        cfg["signals"] = signals
+    if not isinstance(signals, dict):
+        return
+
+    figures = cfg.get("figures", [])
+    if not isinstance(figures, list):
+        return
+
+    for figure in figures:
+        if not isinstance(figure, dict):
+            continue
+        signal = figure.get("signal")
+        if isinstance(signal, str) and signal not in signals:
+            signals[signal] = {"source": signal}
+
+
 def _validate_config(cfg: dict[str, Any]) -> None:
     _validate_unknown_fields(cfg, TOP_LEVEL_FIELDS, "top-level")
+
+    if "run_id" in cfg:
+        _validate_run_id(cfg["run_id"])
 
     data = cfg.get("data")
     if data is None:
@@ -370,6 +421,12 @@ def _validate_config(cfg: dict[str, Any]) -> None:
         data["fs"] = 1000
     if not _is_number(data["fs"]) or data["fs"] <= 0:
         raise ConfigError("'data.fs' must be a positive number.")
+    if "sample_down" not in data:
+        data["sample_down"] = 100
+    if data["sample_down"] is not False and (
+        not _is_number(data["sample_down"]) or data["sample_down"] <= 0
+    ):
+        raise ConfigError("'data.sample_down' must be a positive number or false.")
     _optional_string(data, "time", "data")
 
     output = cfg.get("output", {})
@@ -377,7 +434,9 @@ def _validate_config(cfg: dict[str, Any]) -> None:
         if not isinstance(output, dict):
             raise ConfigError("'output' must be a mapping.")
         _validate_unknown_fields(output, OUTPUT_FIELDS, "output")
+        _optional_string(output, "eps_dir", "output")
         _optional_string(output, "html_dir", "output")
+        _optional_string(output, "latex_file", "output")
 
     _validate_signals(cfg.get("signals"))
     _validate_figures(cfg.get("figures"), cfg["signals"], data)
@@ -435,8 +494,11 @@ def _validate_figures(figures: Any, signals: dict[str, Any], data: dict[str, Any
         _optional_string(figure, "title", location)
         _optional_string(figure, "x_label", location)
         _optional_string(figure, "y_label", location)
-        if "legend" in figure and not isinstance(figure["legend"], bool):
-            raise ConfigError(f"'{location}.legend' must be a boolean.")
+        _optional_string(figure, "caption", location)
+        _optional_string(figure, "label", location)
+        if "paper_size" in figure:
+            _validate_choice(figure["paper_size"], {"column", "half_column"}, f"{location}.paper_size")
+        _validate_legend(figure.get("legend", True), f"{location}.legend")
         _validate_processing(figure.get("processing", {}), f"{location}.processing", allow_pipeline_reference=False)
         _validate_events(figure.get("events", []), location)
 
@@ -478,6 +540,21 @@ def _validate_events(events: Any, figure_location: str) -> None:
         _optional_string(event, "label", location)
 
 
+def _validate_legend(legend: Any, location: str) -> None:
+    if isinstance(legend, bool):
+        return
+    if not isinstance(legend, dict):
+        raise ConfigError(f"'{location}' must be a boolean or mapping.")
+    _validate_unknown_fields(legend, LEGEND_FIELDS, location)
+    if "show" in legend and not isinstance(legend["show"], bool):
+        raise ConfigError(f"'{location}.show' must be a boolean.")
+    if "columns" in legend:
+        columns = legend["columns"]
+        if not isinstance(columns, int) or isinstance(columns, bool) or columns <= 0:
+            raise ConfigError(f"'{location}.columns' must be a positive integer.")
+    _optional_string(legend, "location", location)
+
+
 def _require_string(data: dict[str, Any], field: str, location: str) -> None:
     if field not in data:
         raise ConfigError(f"Missing required field '{location}.{field}'.")
@@ -498,6 +575,20 @@ def _validate_unknown_fields(data: dict[str, Any], allowed: set[str], location: 
             if suggestion:
                 message += f" Did you mean '{suggestion}'?"
             raise ConfigError(message)
+
+
+def _validate_choice(value: Any, choices: set[str], location: str) -> None:
+    if not isinstance(value, str):
+        raise ConfigError(f"'{location}' must be a string.")
+    if value not in choices:
+        raise ConfigError(_unknown_name_message(location, value, choices))
+
+
+def _validate_run_id(value: Any) -> None:
+    if not isinstance(value, str):
+        raise ConfigError("'run_id' must be a string.")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", value):
+        raise ConfigError("'run_id' may contain only letters, numbers, underscore, dash, and dot.")
 
 
 def _unknown_name_message(location: str, name: str, choices: Any) -> str:
