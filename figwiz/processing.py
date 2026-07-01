@@ -117,11 +117,15 @@ def apply_processing(
     return time, signal
 
 
-def crop_array(signal: np.ndarray, window: list[float] | tuple[float, float]) -> np.ndarray:
+def crop_array(signal: np.ndarray, window: list[float] | tuple[float, float], fs: float) -> tuple[np.ndarray, float]:
     if len(window) != 2:
         raise ValueError("crop must be [start, end].")
-    start, end = int(window[0]), int(window[1])
-    return signal[start : end + 1]
+    time = sample_time_axis(signal.shape[0], fs)
+    start, end = float(window[0]), float(window[1])
+    mask = (time >= start) & (time <= end)
+    cropped_time = time[mask]
+    offset = float(cropped_time[0]) if cropped_time.size else start
+    return signal[mask], offset
 
 
 def apply_array_processing(
@@ -130,12 +134,13 @@ def apply_array_processing(
     *,
     fs: float,
     sample_down: float | bool | None = None,
-) -> tuple[np.ndarray, float]:
+) -> tuple[np.ndarray, float, float]:
     processing = processing or {}
     signal = np.asarray(signal)
+    time_offset = 0.0
 
     if "crop" in processing:
-        signal = crop_array(signal, processing["crop"])
+        signal, time_offset = crop_array(signal, processing["crop"], fs)
 
     if "scale" in processing:
         signal = scale(signal, processing["scale"])
@@ -145,4 +150,4 @@ def apply_array_processing(
 
     step = downsample_step(fs, sample_down)
     signal = downsample_signal(signal, step)
-    return signal, float(fs) / step
+    return signal, float(fs) / step, time_offset
