@@ -5,6 +5,12 @@ from typing import Any
 import numpy as np
 
 
+def sample_time_axis(n_samples: int, fs: float) -> np.ndarray:
+    if fs <= 0:
+        raise ValueError("fs must be positive.")
+    return np.arange(n_samples) / float(fs)
+
+
 def ensure_time_vector(time: np.ndarray) -> np.ndarray:
     time = np.asarray(time).squeeze()
     if time.ndim != 1:
@@ -63,3 +69,26 @@ def apply_processing(time: np.ndarray, signal: np.ndarray, processing: dict[str,
         signal = vector_norm(signal)
 
     return time, signal
+
+
+def crop_array(signal: np.ndarray, window: list[float] | tuple[float, float]) -> np.ndarray:
+    if len(window) != 2:
+        raise ValueError("crop must be [start, end].")
+    start, end = int(window[0]), int(window[1])
+    return signal[start : end + 1]
+
+
+def apply_array_processing(signal: np.ndarray, processing: dict[str, Any] | None) -> np.ndarray:
+    processing = processing or {}
+    signal = np.asarray(signal)
+
+    if "crop" in processing:
+        signal = crop_array(signal, processing["crop"])
+
+    if "scale" in processing:
+        signal = scale(signal, processing["scale"])
+
+    if processing.get("norm", False):
+        signal = vector_norm(signal)
+
+    return signal

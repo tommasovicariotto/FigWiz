@@ -7,17 +7,21 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from .config import load_config, resolve_path
+from .config import ConfigError, load_config, resolve_path
 from .mat_loader import as_array, load_mat_file, variable_summary
-from .processing import apply_processing
-from .plotly_viewer import make_timeseries_figure, save_or_show
+from .processing import apply_array_processing, apply_processing
+from .plotly_viewer import make_array_figure, make_timeseries_figure, save_dashboard
 
-app = typer.Typer(help="Config-driven .mat figure inspection tool.")
+app = typer.Typer(help="Configuration-driven MATLAB experiment figure tool.")
 console = Console()
+FIGURES_PER_HTML = 6
 
 
 def _load_from_config(config_path: Path):
-    cfg = load_config(config_path)
+    try:
+        cfg = load_config(config_path)
+    except ConfigError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     mat_path = resolve_path(config_path, cfg["data"]["file"])
     mat_data = load_mat_file(mat_path)
     return cfg, mat_path, mat_data
@@ -61,12 +65,6 @@ def view(
     cfg, mat_path, mat_data = _load_from_config(config)
     console.print(f"[bold]MAT file:[/bold] {mat_path}")
 
-    data_cfg = cfg.get("data", {})
-    time_name = data_cfg.get("time", "t")
-    if time_name not in mat_data:
-        raise typer.BadParameter(f"Time variable '{time_name}' not found in MAT file.")
-    time = as_array(mat_data[time_name], time_name)
-
     signals_cfg = cfg.get("signals", {})
     figures = cfg.get("figures", [])
     if not figures:
@@ -74,7 +72,7 @@ def view(
 
     output_dir = resolve_path(config, cfg.get("output", {}).get("html_dir", "outputs/html"))
 
-    generated = []
+    rendered_figures = []
     for fig_cfg in figures:
         fig_name = fig_cfg.get("name")
         if only and fig_name != only:
@@ -90,17 +88,37 @@ def view(
             raise typer.BadParameter(f"Source variable '{source}' not found for signal '{semantic_signal}'.")
 
         raw_signal = as_array(mat_data[source], source)
-        time_p, signal_p = apply_processing(time, raw_signal, fig_cfg.get("processing"))
         plot_type = fig_cfg.get("plot", "timeseries")
 
-        if plot_type != "timeseries":
-            raise typer.BadParameter(f"Day 1 MVP only supports plot: timeseries. Got '{plot_type}'.")
+        if plot_type == "timeseries":
+            data_cfg = cfg.get("data", {})
+            time_name = data_cfg.get("time")
+            if not time_name:
+                raise typer.BadParameter(f"Figure '{fig_name}' uses plot: timeseries, but data.time is not configured.")
+            if time_name not in mat_data:
+                raise typer.BadParameter(f"Time variable '{time_name}' not found in MAT file.")
+            time = as_array(mat_data[time_name], time_name)
+            time_p, signal_p = apply_processing(time, raw_signal, fig_cfg.get("processing"))
+            fig = make_timeseries_figure(time_p, signal_p, fig_cfg, sig_cfg)
+        elif plot_type == "array":
+            signal_p = apply_array_processing(raw_signal, fig_cfg.get("processing"))
+            fig = make_array_figure(signal_p, fig_cfg, sig_cfg, fs=float(cfg["data"]["fs"]))
+        else:
+            raise typer.BadParameter(f"Unsupported plot type '{plot_type}'.")
 
-        fig = make_timeseries_figure(time_p, signal_p, fig_cfg, sig_cfg)
-        out_path = output_dir / f"{fig_name}.html"
-        save_or_show(fig, out_path, open_browser=not no_browser)
+        rendered_figures.append((fig_name, fig))
+
+    if not rendered_figures:
+        console.print("[yellow]No figures generated.[/yellow]")
+        return
+
+    generated = []
+    stem = Path(config).stem
+    for index in range(0, len(rendered_figures), FIGURES_PER_HTML):
+        batch = rendered_figures[index : index + FIGURES_PER_HTML]
+        batch_number = index // FIGURES_PER_HTML + 1
+        suffix = "" if len(rendered_figures) <= FIGURES_PER_HTML else f"_{batch_number}"
+        out_path = output_dir / f"{stem}{suffix}.html"
+        save_dashboard(batch, out_path, open_browser=not no_browser)
         generated.append(out_path)
         console.print(f"[green]Generated[/green] {out_path}")
-
-    if not generated:
-        console.print("[yellow]No figures generated.[/yellow]")

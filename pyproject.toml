@@ -3,10 +3,14 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "paperfig"
+name = "figwiz"
 version = "0.1.0"
-description = "Config-driven MATLAB figure inspection tool"
-requires-python = ">=3.10"
+description = "Configuration-driven MATLAB experiment figure tool"
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
@@ -17,8 +21,11 @@ dependencies = [
 ]
 
 [project.scripts]
-paperfig = "paperfig.cli:app"
+figwiz = "figwiz.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["paperfig*"]
+include = ["figwiz*"]
+
+[tool.setuptools.package-data]
+figwiz = ["templates/*.yaml"]
