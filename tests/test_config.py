@@ -71,9 +71,31 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(cfg["figures"][0]["x_label"], "time [s]")
 
     def test_builtin_templates_are_yaml_files(self) -> None:
-        self.assertTrue((ROOT / "figwiz" / "templates" / "line_time_series.yaml").exists())
-        self.assertTrue((ROOT / "figwiz" / "templates" / "line_array.yaml").exists())
-        self.assertTrue((ROOT / "figwiz" / "templates" / "tcp_position_error.yaml").exists())
+        expected_templates = {
+            "base_pos_des",
+            "base_pos_msr",
+            "base_rpy_des",
+            "base_rpy_msr",
+            "base_twist",
+            "force_torque",
+            "joint_states",
+            "kinetic_energy",
+            "line_array",
+            "line_time_series",
+            "momentum_components",
+            "momentum_norm",
+            "q_pos_msr",
+            "q_tau_msr",
+            "q_vel_msr",
+            "tcp_pos_ipol",
+            "tcp_position_error",
+            "tcp_rotation_error",
+            "tcp_rpy_ipol",
+        }
+
+        template_names = {path.stem for path in (ROOT / "figwiz" / "templates").glob("*.yaml")}
+
+        self.assertTrue(expected_templates.issubset(template_names))
 
     def test_robotics_template_signal_shorthand(self) -> None:
         path = write_config(
@@ -112,6 +134,44 @@ class ConfigTests(unittest.TestCase):
         cfg = load_config(path)
 
         self.assertEqual(cfg["figures"][0]["processing"], {"norm": True, "crop": [7, 50]})
+
+    def test_rpy_templates_convert_rad_to_deg(self) -> None:
+        path = write_config(
+            {
+                "data": {"file": "data/nominal.mat", "time": "t"},
+                "figures": [
+                    {"template": "base_rpy_msr", "signal": "base_rpy_msr"},
+                    {"template": "base_rpy_des", "signal": "base_rpy_des"},
+                    {"template": "tcp_rpy_ipol", "signal": "tcp_rpy_ipol"},
+                ],
+            }
+        )
+
+        cfg = load_config(path)
+
+        for figure in cfg["figures"]:
+            self.assertIn("[deg]", figure["y_label"])
+            self.assertEqual(figure["processing"], {"scale": 57.29577951308232})
+
+    def test_desired_and_interpolated_template_labels(self) -> None:
+        path = write_config(
+            {
+                "data": {"file": "data/nominal.mat", "time": "t"},
+                "figures": [
+                    {"template": "base_pos_des", "signal": "base_pos_des"},
+                    {"template": "base_rpy_des", "signal": "base_rpy_des"},
+                    {"template": "tcp_pos_ipol", "signal": "tcp_pos_ipol"},
+                    {"template": "tcp_rpy_ipol", "signal": "tcp_rpy_ipol"},
+                ],
+            }
+        )
+
+        cfg = load_config(path)
+
+        self.assertEqual(cfg["figures"][0]["y_label"], "base position des. [m]")
+        self.assertEqual(cfg["figures"][1]["y_label"], "base RPY des. [deg]")
+        self.assertEqual(cfg["figures"][2]["y_label"], "TCP position des. ipol [m]")
+        self.assertEqual(cfg["figures"][3]["y_label"], "TCP RPY des. ipol [deg]")
 
     def test_array_template_does_not_require_time(self) -> None:
         path = write_config(

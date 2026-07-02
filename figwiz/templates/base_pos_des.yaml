@@ -1,0 +1,5 @@
+name: base_pos_des
+title: Base position desired
+plot: timeseries
+x_label: time [s]
+y_label: base position des. [m]

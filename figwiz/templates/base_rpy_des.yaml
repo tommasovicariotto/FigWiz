@@ -1,0 +1,6 @@
+name: base_rpy_des
+title: Base RPY desired
+plot: timeseries
+x_label: time [s]
+y_label: base RPY des. [deg]
+pipeline: rad_to_deg

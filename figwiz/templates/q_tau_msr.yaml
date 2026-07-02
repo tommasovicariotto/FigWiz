@@ -1,0 +1,5 @@
+name: q_tau_msr
+title: Joint torque measured
+plot: timeseries
+x_label: time [s]
+y_label: joint torque

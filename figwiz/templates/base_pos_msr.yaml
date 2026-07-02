@@ -1,0 +1,5 @@
+name: base_pos_msr
+title: Base position measured
+plot: timeseries
+x_label: time [s]
+y_label: base position [m]

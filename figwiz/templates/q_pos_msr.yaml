@@ -1,0 +1,5 @@
+name: q_pos_msr
+title: Joint position measured
+plot: timeseries
+x_label: time [s]
+y_label: joint position

@@ -1,0 +1,5 @@
+name: tcp_pos_ipol
+title: TCP position interpolated
+plot: timeseries
+x_label: time [s]
+y_label: TCP position des. ipol [m]
