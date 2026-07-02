@@ -15,9 +15,8 @@ It is built around one idea: **edit YAML configs, not plotting code**. The same 
 git clone https://github.com/tommasovicariotto/figwiz.git
 cd figwiz
 
-conda create -n figwiz312 python=3.12
-conda activate figwiz312
-
+python -m venv .venv
+source .venv/bin/activate
 pip install -e .
 ```
 
