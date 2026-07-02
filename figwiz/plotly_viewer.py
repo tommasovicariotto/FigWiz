@@ -101,7 +101,9 @@ def make_array_figure(
 def save_or_show(fig: go.Figure, output_path: str | Path, open_browser: bool = True) -> Path:
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.write_html(str(output_path), include_plotlyjs="cdn", auto_open=open_browser)
+    fig.write_html(str(output_path), include_plotlyjs="cdn", auto_open=False)
+    if open_browser:
+        _open_in_default_browser(output_path)
     return output_path
 
 
@@ -122,8 +124,12 @@ def save_dashboard(
 
     output_path.write_text(_dashboard_html("\n".join(panels), count=len(figures)), encoding="utf-8")
     if open_browser:
-        webbrowser.open(output_path.resolve().as_uri())
+        _open_in_default_browser(output_path)
     return output_path
+
+
+def _open_in_default_browser(path: Path) -> None:
+    webbrowser.open_new_tab(path.resolve().as_uri())
 
 
 def _dashboard_html(body: str, *, count: int) -> str:
