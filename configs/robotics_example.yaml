@@ -1,4 +1,4 @@
-# Robotics template example.
+# Robotics FigWiz example.
 
 variables:
   experiment_name: nominal
