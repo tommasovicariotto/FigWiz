@@ -1,0 +1,5 @@
+name: q_vel_msr
+title: Joint velocity measured
+plot: timeseries
+x_label: time [s]
+y_label: joint velocity

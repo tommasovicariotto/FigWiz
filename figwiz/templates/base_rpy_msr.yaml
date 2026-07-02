@@ -1,0 +1,6 @@
+name: base_rpy_msr
+title: Base RPY measured
+plot: timeseries
+x_label: time [s]
+y_label: base RPY [deg]
+pipeline: rad_to_deg

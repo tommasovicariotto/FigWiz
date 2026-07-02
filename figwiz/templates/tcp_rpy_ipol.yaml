@@ -1,0 +1,6 @@
+name: tcp_rpy_ipol
+title: TCP RPY interpolated
+plot: timeseries
+x_label: time [s]
+y_label: TCP RPY des. ipol [deg]
+pipeline: rad_to_deg
