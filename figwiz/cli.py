@@ -138,7 +138,7 @@ def generate(
 ):
     """Generate publication EPS figures and one psfrag LaTeX snippet."""
     try:
-        from .publication import save_publication_figure, write_latex_snippet
+        from .publication import save_pgfplots_figure, save_publication_figure, write_latex_snippet, write_pgfplots_snippet
     except ImportError as exc:
         raise typer.BadParameter("Publication export requires matplotlib. Install project dependencies first.") from exc
 
@@ -151,11 +151,23 @@ def generate(
         raise typer.BadParameter("Config contains no figures.")
 
     output_cfg = cfg.get("output", {})
-    eps_dir = resolve_output_path(config, cfg, output_cfg.get("eps_dir", "outputs/paper/eps"))
-    latex_path = resolve_output_path(config, cfg, output_cfg.get("latex_file", "outputs/paper/figures.tex"))
+    latex_path = resolve_output_path(config, cfg, output_cfg.get("latex_file", "outputs/paper/option_eps/figures.tex"))
+    eps_dir = _resolve_run_scoped_subdir(config, cfg, output_cfg.get("eps_dir"), default_name="eps", parent=latex_path.parent)
+    pgfplots_latex_path = resolve_output_path(config, cfg, "outputs/paper/option_tikz/figures_pgfplots.tex")
+    pgfplots_dir = (
+        resolve_output_path(config, cfg, output_cfg["pgfplots_dir"])
+        if "pgfplots_dir" in output_cfg
+        else pgfplots_latex_path.parent / "pgfplots"
+    )
+    pgfplots_data_dir = (
+        resolve_output_path(config, cfg, output_cfg["pgfplots_data_dir"])
+        if "pgfplots_data_dir" in output_cfg
+        else pgfplots_latex_path.parent / "dat"
+    )
     sample_down = cfg.get("data", {}).get("sample_down")
 
     exported = []
+    pgfplots_exported = []
     for fig_cfg in figures:
         fig_name = fig_cfg.get("name")
         if only and fig_name != only:
@@ -182,6 +194,7 @@ def generate(
                 raise typer.BadParameter(f"Time variable '{time_name}' not found in MAT file.")
             time = as_array(mat_data[time_name], time_name)
             x, signal = apply_processing(time, raw_signal, fig_cfg.get("processing"), sample_down=sample_down)
+            pgf_x, pgf_signal = apply_processing(time, raw_signal, fig_cfg.get("processing"), sample_down=False)
         elif plot_type == "array":
             fs = float(cfg["data"]["fs"])
             signal, effective_fs, time_offset = apply_array_processing(
@@ -191,19 +204,53 @@ def generate(
                 sample_down=sample_down,
             )
             x = sample_time_axis(signal.shape[0], effective_fs) + time_offset
+            pgf_signal, _, pgf_time_offset = apply_array_processing(
+                raw_signal,
+                fig_cfg.get("processing"),
+                fs=fs,
+                sample_down=False,
+            )
+            pgf_x = sample_time_axis(pgf_signal.shape[0], fs) + pgf_time_offset
         else:
             raise typer.BadParameter(f"Unsupported plot type '{plot_type}'.")
 
         exported_figure = save_publication_figure(x, signal, fig_cfg, sig_cfg, eps_dir)
         exported.append(exported_figure)
         console.print(f"[green]Generated[/green] {exported_figure.eps_path}")
+        pgfplots_figure = save_pgfplots_figure(
+            pgf_x,
+            pgf_signal,
+            fig_cfg,
+            sig_cfg,
+            pgfplots_dir,
+            pgfplots_data_dir,
+            buckets_per_second=5.0,
+        )
+        pgfplots_exported.append(pgfplots_figure)
+        console.print(f"[green]Generated[/green] {pgfplots_figure.tex_path}")
+        console.print(f"[green]Generated[/green] {pgfplots_figure.data_path}")
 
     if not exported:
         console.print("[yellow]No figures generated.[/yellow]")
         return
 
-    write_latex_snippet(exported, latex_path, graphics_prefix="")
+    write_latex_snippet(exported, latex_path, graphics_prefix="eps/")
     console.print(f"[green]Generated[/green] {latex_path}")
+    write_pgfplots_snippet(pgfplots_exported, pgfplots_latex_path, input_prefix="pgfplots/")
+    console.print(f"[green]Generated[/green] {pgfplots_latex_path}")
+
+
+def _resolve_run_scoped_subdir(
+    config_path: Path,
+    cfg: dict,
+    raw_path: str | None,
+    *,
+    default_name: str,
+    parent: Path,
+) -> Path:
+    if raw_path is None:
+        return parent / default_name
+    return resolve_output_path(config_path, cfg, raw_path)
 
 
 @app.command()

@@ -52,6 +52,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(cfg["run_id"], "nominal")
         self.assertEqual(len(cfg["figures"]), 4)
         self.assertEqual(cfg["figures"][0]["plot"], "timeseries")
+        self.assertNotIn("crop", cfg["figures"][0]["processing"])
 
     def test_style_merge(self) -> None:
         path = write_config(minimal_config(style="ieee"))
@@ -116,6 +117,41 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(cfg["figures"][0]["title"], "TCP position error")
         self.assertEqual(cfg["figures"][0]["plot"], "timeseries")
         self.assertEqual(cfg["signals"]["TCP_pos_err"]["source"], "TCP_pos_err")
+        self.assertEqual(cfg["signals"]["TCP_pos_err"]["components"], ["x", "y", "z"])
+
+    def test_rotation_signal_shorthand_uses_latex_angle_labels(self) -> None:
+        path = write_config(
+            {
+                "data": {"file": "data/nominal.mat", "time": "t"},
+                "figures": [
+                    {
+                        "template": "tcp_rotation_error",
+                        "signal": "TCP_rot_err",
+                    }
+                ],
+            }
+        )
+
+        cfg = load_config(path)
+
+        self.assertEqual(cfg["signals"]["TCP_rot_err"]["components"], [r"$\alpha$", r"$\beta$", r"$\gamma$"])
+
+    def test_joint_position_signal_shorthand_does_not_use_xyz_labels(self) -> None:
+        path = write_config(
+            {
+                "data": {"file": "data/nominal.mat", "time": "t"},
+                "figures": [
+                    {
+                        "template": "q_pos_msr",
+                        "signal": "q_pos_msr",
+                    }
+                ],
+            }
+        )
+
+        cfg = load_config(path)
+
+        self.assertNotIn("components", cfg["signals"]["q_pos_msr"])
 
     def test_template_processing_merges_with_user_processing(self) -> None:
         path = write_config(
@@ -298,10 +334,13 @@ class ConfigTests(unittest.TestCase):
         cfg = load_config(path)
 
         html_dir = resolve_output_path(path, cfg, "outputs/html")
-        latex_file = resolve_output_path(path, cfg, "outputs/paper/figures.txt")
+        latex_file = resolve_output_path(path, cfg, "outputs/paper/option_eps/figures.tex")
 
-        self.assertEqual(html_dir, path.parent.parent / "outputs" / "html" / "nominal")
-        self.assertEqual(latex_file, path.parent.parent / "outputs" / "paper" / "nominal" / "figures.txt")
+        self.assertEqual(html_dir, path.parent.parent / "outputs" / "nominal" / "html")
+        self.assertEqual(
+            latex_file,
+            path.parent.parent / "outputs" / "nominal" / "paper" / "option_eps" / "figures.tex",
+        )
 
     def test_invalid_run_id(self) -> None:
         path = write_config(minimal_config(run_id="../bad"))
