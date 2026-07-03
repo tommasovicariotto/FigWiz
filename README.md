@@ -2,7 +2,7 @@
 
 FigWiz is a Python CLI for turning MATLAB robotics experiment data into reusable figures.
 
-It is built around one idea: **edit YAML configs, not plotting code**. The same config can inspect a `.mat` file, open an interactive dashboard, generate EPS figures for papers, and generate PDF figures for reports.
+It is built around one idea: **edit YAML configs, not plotting code**. The same config can inspect a `.mat` file, open an interactive dashboard, generate paper-ready figures, and generate report PDFs.
 
 ## Requirements
 
@@ -47,13 +47,21 @@ Expected outputs:
 
 ```text
 outputs/nominal/html/robotics_example.html
+
 outputs/nominal/paper/option_eps/eps/*.eps
 outputs/nominal/paper/option_eps/figures.tex
+
 outputs/nominal/paper/option_tikz/dat/*.dat
 outputs/nominal/paper/option_tikz/pgfplots/*.tex
 outputs/nominal/paper/option_tikz/figures_pgfplots.tex
+
 outputs/nominal/report/*.pdf
 ```
+
+Paper output is split into two alternatives:
+
+- `option_eps`: EPS figures plus a psfrag-ready `figures.tex`
+- `option_tikz`: PGFPlots/TikZ snippets plus downsampled `.dat` tables
 
 ## Architecture
 
@@ -70,7 +78,7 @@ figwiz/                     Python package
   config.py                 strict config loading and validation
   processing.py             crop, scale, norm, sample down
   plotly_viewer.py          interactive HTML dashboard backend
-  publication.py            Matplotlib EPS/PDF export backend
+  publication.py            EPS/psfrag, PGFPlots/TikZ, and PDF export backend
   styles.py                 reusable paper/report style definitions
 ```
 
@@ -114,10 +122,17 @@ Render one configured figure:
 figwiz view configs/robotics_example.yaml --only tcp_position_error
 ```
 
-Generate publication EPS figures, psfrag snippets, and PGFPlots/TikZ files:
+Generate paper output:
 
 ```bash
 figwiz generate configs/robotics_example.yaml
+```
+
+This writes both paper options:
+
+```text
+option_eps/                 EPS + psfrag
+option_tikz/                PGFPlots/TikZ + .dat tables
 ```
 
 Generate report-ready PDF figures:
