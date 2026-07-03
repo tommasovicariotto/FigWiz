@@ -10,8 +10,8 @@ data:
   time: t
 
 output:
-  eps_dir: outputs/paper/eps
-  latex_file: outputs/paper/figures.txt
+  eps_dir: outputs/paper/option_eps/eps
+  latex_file: outputs/paper/option_eps/figures.tex
   report_dir: outputs/report
 
 style: ieee
@@ -21,7 +21,6 @@ figures:
     signal: TCP_pos_err
     paper_size: column
     processing:
-      crop: [7, 50]
       scale: 100
     y_label: position error [cm]
 

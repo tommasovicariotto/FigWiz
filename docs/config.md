@@ -47,12 +47,24 @@ data:
 run_id: nominal
 
 output:
-  eps_dir: outputs/paper/eps
-  latex_file: outputs/paper/figures.txt
+  eps_dir: outputs/paper/option_eps/eps
+  latex_file: outputs/paper/option_eps/figures.tex
   report_dir: outputs/report
 ```
 
-With `run_id: nominal`, outputs are written under `nominal` subfolders.
+With `run_id: nominal`, outputs are written under the top-level `outputs/nominal` folder.
+
+`figwiz generate` writes EPS files, a psfrag LaTeX snippet, PGFPlots `.dat` tables, PGFPlots `.tex` plot snippets, and `figures_pgfplots.tex`. By default, paper output is grouped under the run folder:
+
+```text
+outputs/nominal/paper/option_eps/eps/*.eps
+outputs/nominal/paper/option_eps/figures.tex
+outputs/nominal/paper/option_tikz/figures_pgfplots.tex
+outputs/nominal/paper/option_tikz/pgfplots/*.tex
+outputs/nominal/paper/option_tikz/dat/*.dat
+```
+
+The master snippet uses `\input{pgfplots/name.tex}`, and plot snippets read data from `dat/name.dat`. PGFPlots data is reduced with M4 downsampling at 5 buckets/s so spikes are preserved while LaTeX input stays small.
 
 ## Figures
 

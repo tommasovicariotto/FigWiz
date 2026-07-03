@@ -55,7 +55,7 @@ TOP_LEVEL_FIELDS = {
     "variables",
 }
 DATA_FIELDS = {"dataset", "file", "fs", "sample_down", "time"}
-OUTPUT_FIELDS = {"eps_dir", "html_dir", "latex_file", "report_dir"}
+OUTPUT_FIELDS = {"eps_dir", "html_dir", "latex_file", "pgfplots_data_dir", "pgfplots_dir", "report_dir"}
 SIGNAL_FIELDS = {"components", "kind", "source", "unit"}
 FIGURE_FIELDS = {
     "caption",
@@ -113,9 +113,22 @@ def resolve_output_path(config_path: str | Path, cfg: dict[str, Any], output_pat
     run_id = cfg.get("run_id")
     if not run_id:
         return path
-    if path.suffix:
-        return path.parent / str(run_id) / path.name
-    return path / str(run_id)
+    return _insert_run_id_after_outputs(path, str(run_id))
+
+
+def _insert_run_id_after_outputs(path: Path, run_id: str) -> Path:
+    parts = list(path.parts)
+    for index, part in enumerate(parts):
+        if part != "outputs":
+            continue
+        run_index = index + 1
+        if run_index < len(parts) and parts[run_index] == run_id:
+            return path
+        return Path(*parts[:run_index], run_id, *parts[run_index:])
+
+    if path.name == run_id:
+        return path
+    return path.parent / run_id / path.name
 
 
 def _load_raw_config(path: Path, seen: set[Path]) -> dict[str, Any]:
@@ -401,7 +414,34 @@ def _expand_signal_shorthand(cfg: dict[str, Any]) -> None:
             continue
         signal = figure.get("signal")
         if isinstance(signal, str) and signal not in signals:
-            signals[signal] = {"source": signal}
+            signals[signal] = _default_signal_config(signal, figure)
+
+
+def _default_signal_config(signal: str, figure: dict[str, Any]) -> dict[str, Any]:
+    signal_cfg: dict[str, Any] = {"source": signal}
+    semantic_text = " ".join(
+        str(value).lower()
+        for value in (
+            signal,
+            figure.get("name", ""),
+            figure.get("template", ""),
+            figure.get("title", ""),
+        )
+    )
+
+    if _is_spatial_position_signal(semantic_text):
+        signal_cfg["components"] = ["x", "y", "z"]
+    elif _is_rotation_signal(semantic_text):
+        signal_cfg["components"] = [r"$\alpha$", r"$\beta$", r"$\gamma$"]
+    return signal_cfg
+
+
+def _is_spatial_position_signal(text: str) -> bool:
+    return any(token in text for token in ("tcp_pos", "tcp_position", "base_pos", "position_error"))
+
+
+def _is_rotation_signal(text: str) -> bool:
+    return any(token in text for token in ("rpy", "rotation", "rot_err"))
 
 
 def _validate_config(cfg: dict[str, Any]) -> None:
@@ -437,6 +477,8 @@ def _validate_config(cfg: dict[str, Any]) -> None:
         _optional_string(output, "eps_dir", "output")
         _optional_string(output, "html_dir", "output")
         _optional_string(output, "latex_file", "output")
+        _optional_string(output, "pgfplots_data_dir", "output")
+        _optional_string(output, "pgfplots_dir", "output")
         _optional_string(output, "report_dir", "output")
 
     _validate_signals(cfg.get("signals"))

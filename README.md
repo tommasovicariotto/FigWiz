@@ -46,10 +46,13 @@ figwiz report configs/robotics_example.yaml
 Expected outputs:
 
 ```text
-outputs/html/nominal/robotics_example.html
-outputs/paper/eps/nominal/*.eps
-outputs/paper/nominal/figures.txt
-outputs/report/nominal/*.pdf
+outputs/nominal/html/robotics_example.html
+outputs/nominal/paper/option_eps/eps/*.eps
+outputs/nominal/paper/option_eps/figures.tex
+outputs/nominal/paper/option_tikz/dat/*.dat
+outputs/nominal/paper/option_tikz/pgfplots/*.tex
+outputs/nominal/paper/option_tikz/figures_pgfplots.tex
+outputs/nominal/report/*.pdf
 ```
 
 ## Architecture
@@ -111,7 +114,7 @@ Render one configured figure:
 figwiz view configs/robotics_example.yaml --only tcp_position_error
 ```
 
-Generate publication EPS figures and psfrag snippets:
+Generate publication EPS figures, psfrag snippets, and PGFPlots/TikZ files:
 
 ```bash
 figwiz generate configs/robotics_example.yaml
