@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 from typing import Optional
 
@@ -135,8 +136,14 @@ def view(
 def generate(
     config: Path = typer.Argument(..., help="Path to YAML config."),
     only: Optional[str] = typer.Option(None, "--only", help="Only export one figure by name."),
+    clean: bool = typer.Option(False, "--clean", help="Remove this run's paper output before generating."),
+    eps_only: bool = typer.Option(False, "--eps-only", help="Generate only EPS and psfrag output."),
+    tikz_only: bool = typer.Option(False, "--tikz-only", help="Generate only PGFPlots/TikZ output."),
 ):
     """Generate publication EPS figures and one psfrag LaTeX snippet."""
+    if eps_only and tikz_only:
+        raise typer.BadParameter("--eps-only and --tikz-only cannot be used together.")
+
     try:
         from .publication import save_pgfplots_figure, save_publication_figure, write_latex_snippet, write_pgfplots_snippet
     except ImportError as exc:
@@ -164,6 +171,13 @@ def generate(
         if "pgfplots_data_dir" in output_cfg
         else pgfplots_latex_path.parent / "dat"
     )
+    tikz_buckets_per_second = float(output_cfg.get("tikz_buckets_per_second", 5))
+    generate_eps = not tikz_only
+    generate_tikz = not eps_only
+    paper_dir = latex_path.parent.parent
+    if clean:
+        _clean_output_dir(paper_dir)
+        console.print(f"[yellow]Cleaned[/yellow] {paper_dir}")
     sample_down = cfg.get("data", {}).get("sample_down")
 
     exported = []
@@ -194,7 +208,8 @@ def generate(
                 raise typer.BadParameter(f"Time variable '{time_name}' not found in MAT file.")
             time = as_array(mat_data[time_name], time_name)
             x, signal = apply_processing(time, raw_signal, fig_cfg.get("processing"), sample_down=sample_down)
-            pgf_x, pgf_signal = apply_processing(time, raw_signal, fig_cfg.get("processing"), sample_down=False)
+            if generate_tikz:
+                pgf_x, pgf_signal = apply_processing(time, raw_signal, fig_cfg.get("processing"), sample_down=False)
         elif plot_type == "array":
             fs = float(cfg["data"]["fs"])
             signal, effective_fs, time_offset = apply_array_processing(
@@ -204,40 +219,53 @@ def generate(
                 sample_down=sample_down,
             )
             x = sample_time_axis(signal.shape[0], effective_fs) + time_offset
-            pgf_signal, _, pgf_time_offset = apply_array_processing(
-                raw_signal,
-                fig_cfg.get("processing"),
-                fs=fs,
-                sample_down=False,
-            )
-            pgf_x = sample_time_axis(pgf_signal.shape[0], fs) + pgf_time_offset
+            if generate_tikz:
+                pgf_signal, _, pgf_time_offset = apply_array_processing(
+                    raw_signal,
+                    fig_cfg.get("processing"),
+                    fs=fs,
+                    sample_down=False,
+                )
+                pgf_x = sample_time_axis(pgf_signal.shape[0], fs) + pgf_time_offset
         else:
             raise typer.BadParameter(f"Unsupported plot type '{plot_type}'.")
 
-        exported_figure = save_publication_figure(x, signal, fig_cfg, sig_cfg, eps_dir)
-        exported.append(exported_figure)
-        console.print(f"[green]Generated[/green] {exported_figure.eps_path}")
-        pgfplots_figure = save_pgfplots_figure(
-            pgf_x,
-            pgf_signal,
-            fig_cfg,
-            sig_cfg,
-            pgfplots_dir,
-            pgfplots_data_dir,
-            buckets_per_second=5.0,
-        )
-        pgfplots_exported.append(pgfplots_figure)
-        console.print(f"[green]Generated[/green] {pgfplots_figure.tex_path}")
-        console.print(f"[green]Generated[/green] {pgfplots_figure.data_path}")
+        if generate_eps:
+            exported_figure = save_publication_figure(x, signal, fig_cfg, sig_cfg, eps_dir)
+            exported.append(exported_figure)
+            console.print(f"[green]Generated[/green] {exported_figure.eps_path}")
+        if generate_tikz:
+            pgfplots_figure = save_pgfplots_figure(
+                pgf_x,
+                pgf_signal,
+                fig_cfg,
+                sig_cfg,
+                pgfplots_dir,
+                pgfplots_data_dir,
+                buckets_per_second=tikz_buckets_per_second,
+            )
+            pgfplots_exported.append(pgfplots_figure)
+            console.print(f"[green]Generated[/green] {pgfplots_figure.tex_path}")
+            console.print(f"[green]Generated[/green] {pgfplots_figure.data_path}")
 
-    if not exported:
+    if not exported and not pgfplots_exported:
         console.print("[yellow]No figures generated.[/yellow]")
         return
 
-    write_latex_snippet(exported, latex_path, graphics_prefix="eps/")
-    console.print(f"[green]Generated[/green] {latex_path}")
-    write_pgfplots_snippet(pgfplots_exported, pgfplots_latex_path, input_prefix="pgfplots/")
-    console.print(f"[green]Generated[/green] {pgfplots_latex_path}")
+    if generate_eps:
+        write_latex_snippet(exported, latex_path, graphics_prefix="eps/")
+        console.print(f"[green]Generated[/green] {latex_path}")
+    if generate_tikz:
+        write_pgfplots_snippet(pgfplots_exported, pgfplots_latex_path, input_prefix="pgfplots/")
+        console.print(f"[green]Generated[/green] {pgfplots_latex_path}")
+
+
+def _clean_output_dir(path: Path) -> None:
+    if not path.exists():
+        return
+    if not path.is_dir():
+        raise typer.BadParameter(f"Cannot clean output path '{path}' because it is not a directory.")
+    shutil.rmtree(path)
 
 
 def _resolve_run_scoped_subdir(
@@ -257,6 +285,7 @@ def _resolve_run_scoped_subdir(
 def report(
     config: Path = typer.Argument(..., help="Path to YAML config."),
     only: Optional[str] = typer.Option(None, "--only", help="Only export one figure by name."),
+    clean: bool = typer.Option(False, "--clean", help="Remove this run's report output before generating."),
 ):
     """Generate report-ready PDF figures with real labels."""
     try:
@@ -274,6 +303,9 @@ def report(
 
     output_cfg = cfg.get("output", {})
     report_dir = resolve_output_path(config, cfg, output_cfg.get("report_dir", "outputs/report"))
+    if clean:
+        _clean_output_dir(report_dir)
+        console.print(f"[yellow]Cleaned[/yellow] {report_dir}")
     sample_down = cfg.get("data", {}).get("sample_down")
 
     generated = []

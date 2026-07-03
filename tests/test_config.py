@@ -401,6 +401,19 @@ class ConfigTests(unittest.TestCase):
         with self.assertRaisesRegex(ConfigError, "legend.columns"):
             load_config(path)
 
+    def test_tikz_buckets_per_second_is_validated(self) -> None:
+        path = write_config(minimal_config(output={"tikz_buckets_per_second": 0}))
+
+        with self.assertRaisesRegex(ConfigError, "tikz_buckets_per_second"):
+            load_config(path)
+
+    def test_tikz_buckets_per_second_accepts_positive_number(self) -> None:
+        path = write_config(minimal_config(output={"tikz_buckets_per_second": 2.5}))
+
+        cfg = load_config(path)
+
+        self.assertEqual(cfg["output"]["tikz_buckets_per_second"], 2.5)
+
     def test_dataset_alias_validation(self) -> None:
         path = write_config(minimal_config(data={"dataset": "missing"}, datasets={}))
 

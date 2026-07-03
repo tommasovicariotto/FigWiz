@@ -50,6 +50,7 @@ output:
   eps_dir: outputs/paper/option_eps/eps
   latex_file: outputs/paper/option_eps/figures.tex
   report_dir: outputs/report
+  tikz_buckets_per_second: 5
 ```
 
 With `run_id: nominal`, outputs are written under the top-level `outputs/nominal` folder.
@@ -64,7 +65,7 @@ outputs/nominal/paper/option_tikz/pgfplots/*.tex
 outputs/nominal/paper/option_tikz/dat/*.dat
 ```
 
-The master snippet uses `\input{pgfplots/name.tex}`, and plot snippets read data from `dat/name.dat`. PGFPlots data is reduced with M4 downsampling at 5 buckets/s so spikes are preserved while LaTeX input stays small.
+The master snippet uses `\input{pgfplots/name.tex}`, and plot snippets read data from `dat/name.dat`. PGFPlots data is reduced with M4 downsampling at `output.tikz_buckets_per_second` buckets/s so spikes are preserved while LaTeX input stays small.
 
 ## Figures
 

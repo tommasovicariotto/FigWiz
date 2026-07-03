@@ -135,10 +135,29 @@ option_eps/                 EPS + psfrag
 option_tikz/                PGFPlots/TikZ + .dat tables
 ```
 
+During iteration, generate only one paper option:
+
+```bash
+figwiz generate configs/robotics_example.yaml --eps-only
+figwiz generate configs/robotics_example.yaml --tikz-only
+```
+
+Remove stale paper outputs before regenerating:
+
+```bash
+figwiz generate configs/robotics_example.yaml --clean
+```
+
 Generate report-ready PDF figures:
 
 ```bash
 figwiz report configs/robotics_example.yaml
+```
+
+Remove stale report PDFs before regenerating:
+
+```bash
+figwiz report configs/robotics_example.yaml --clean
 ```
 
 ## Configuration

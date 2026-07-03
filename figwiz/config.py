@@ -55,7 +55,15 @@ TOP_LEVEL_FIELDS = {
     "variables",
 }
 DATA_FIELDS = {"dataset", "file", "fs", "sample_down", "time"}
-OUTPUT_FIELDS = {"eps_dir", "html_dir", "latex_file", "pgfplots_data_dir", "pgfplots_dir", "report_dir"}
+OUTPUT_FIELDS = {
+    "eps_dir",
+    "html_dir",
+    "latex_file",
+    "pgfplots_data_dir",
+    "pgfplots_dir",
+    "report_dir",
+    "tikz_buckets_per_second",
+}
 SIGNAL_FIELDS = {"components", "kind", "source", "unit"}
 FIGURE_FIELDS = {
     "caption",
@@ -480,6 +488,10 @@ def _validate_config(cfg: dict[str, Any]) -> None:
         _optional_string(output, "pgfplots_data_dir", "output")
         _optional_string(output, "pgfplots_dir", "output")
         _optional_string(output, "report_dir", "output")
+        if "tikz_buckets_per_second" in output and (
+            not _is_number(output["tikz_buckets_per_second"]) or output["tikz_buckets_per_second"] <= 0
+        ):
+            raise ConfigError("'output.tikz_buckets_per_second' must be a positive number.")
 
     _validate_signals(cfg.get("signals"))
     _validate_figures(cfg.get("figures"), cfg["signals"], data)
