@@ -189,6 +189,8 @@ def write_latex_snippet(figures: list[PublicationFigure], latex_path: Path, *, g
         r"% FigWiz publication snippets.",
         r"\usepackage{graphicx}",
         r"\usepackage{psfrag}",
+        r"\newcommand{\FontFigS}{.8}",
+        r"\newcommand{\FontFigM}{1}",
     ]
     blocks = [_latex_block(figure, graphics_prefix=graphics_prefix) for figure in figures]
     latex_path.write_text("\n".join(header) + "\n\n" + "\n\n".join(blocks) + "\n", encoding="utf-8")
@@ -198,9 +200,8 @@ def write_latex_snippet(figures: list[PublicationFigure], latex_path: Path, *, g
 def write_pgfplots_snippet(figures: list[PgfplotsFigure], latex_path: Path, *, input_prefix: str = "pgfplots/") -> Path:
     latex_path.parent.mkdir(parents=True, exist_ok=True)
     header = [
-        r"% FigWiz PGFPlots publication snippets.",
-        r"% Requires: \usepackage{tikz}",
-        r"% Requires: \usepackage{pgfplots}",
+        r"\usepackage{tikz}",
+        r"\usepackage{pgfplots}",
         r"\pgfplotsset{compat=1.18}",
         "",
         _pgfplots_style(),

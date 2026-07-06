@@ -56,6 +56,8 @@ class PublicationTests(unittest.TestCase):
         text = output.read_text(encoding="utf-8")
         self.assertIn(r"\usepackage{graphicx}", text)
         self.assertIn(r"\usepackage{psfrag}", text)
+        self.assertIn(r"\newcommand{\FontFigS}{.8}", text)
+        self.assertIn(r"\newcommand{\FontFigM}{1}", text)
         self.assertIn(r"\psfrag{tim}[cc][cc][\FontFigS]{Time [s]}", text)
         self.assertIn(r"\psfrag{ylab}[cc][cc][\FontFigS]{Position error [cm]}", text)
         self.assertIn(r"\includegraphics[width=\columnwidth]{eps/tcp_position_error.eps}", text)
@@ -76,6 +78,8 @@ class PublicationTests(unittest.TestCase):
         eps_text = figure.eps_path.read_text(encoding="latin-1")
         self.assertIn("(tim) show", eps_text)
         self.assertIn("(ylab) show", eps_text)
+        self.assertRegex(eps_text, r"/zero glyphshow")
+        self.assertRegex(eps_text, r"/one glyphshow")
         if which("gs"):
             subprocess.run(
                 ["gs", "-dBATCH", "-dNOPAUSE", "-sDEVICE=bbox", str(figure.eps_path)],
@@ -196,6 +200,8 @@ class PublicationTests(unittest.TestCase):
         write_pgfplots_snippet(figures, output)
 
         text = output.read_text(encoding="utf-8")
+        self.assertNotIn("% Requires:", text)
+        self.assertIn(r"\usepackage{tikz}", text)
         self.assertIn(r"\usepackage{pgfplots}", text)
         self.assertIn(r"\pgfplotsset{compat=1.18}", text)
         self.assertIn(r"figwiz_ieee/.style", text)
